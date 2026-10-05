@@ -69,33 +69,63 @@ const PROTOTYPE_TOURNAMENT_GROUPS = {
 const TAIDGHRULES = [
   {
     id: 'extra-sub',
-    title: 'Extra Sub Tonight',
-    text: 'Taidghfantino has allowed one additional substitution for both teams in this match.',
+    title: 'Bench Buffet',
+    text: 'Taidghfantino wants fresh chaos. Both teams get one extra substitution tonight.',
     effect: { extraSubs: 1 }
   },
   {
     id: 'strict-ref',
-    title: 'Referees Are Feeling Strict',
-    text: 'Cards come out quicker. Tactical fouls are much more likely to be punished.',
+    title: 'No Nonsense Night',
+    text: 'The referee has been told to stamp authority everywhere. Cards come out quicker.',
     effect: { cardRate: 0.08 }
   },
   {
     id: 'long-shots',
     title: 'Long Shot Festival',
-    text: 'Shots from distance are getting a small boost. The crowd wants screamers.',
+    text: 'Taidghfantino demands screamers. Efforts from distance get a lift.',
     effect: { longShotBoost: 0.08 }
   },
   {
     id: 'nervy-keepers',
-    title: 'Nervy Goalkeepers',
-    text: 'Keepers are a little less certain tonight. Saves are slightly harder.',
-    effect: { keeperNerf: 4 }
+    title: 'Butter Gloves',
+    text: 'The gloves feel slippery tonight. Goalkeepers look much less secure.',
+    effect: { keeperNerf: 7 }
   },
   {
     id: 'ice-penalties',
     title: 'Ice-Cold Penalties',
-    text: 'Penalty takers get a small composure boost if the match reaches a shootout.',
+    text: 'If it goes to a shootout, penalty takers get a little extra composure.',
     effect: { penaltyBoost: 5 }
+  },
+  {
+    id: 'turbo-pitch',
+    title: 'Turbo Pitch',
+    text: 'The ball is zipping around. Open-play chances arrive more often for everyone.',
+    effect: { chanceBoost: 0.05 }
+  },
+  {
+    id: 'heavy-legs',
+    title: 'Heavy Legs Decree',
+    text: 'Taidghfantino says nobody gets a rest. Players tire faster all over the pitch.',
+    effect: { staminaTax: 0.18 }
+  },
+  {
+    id: 'let-it-flow',
+    title: 'Let It Flow',
+    text: 'The ref is told to keep the game moving. Cards are slightly less likely.',
+    effect: { cardRate: -0.03 }
+  },
+  {
+    id: 'goal-rush',
+    title: 'Goal Rush Hour',
+    text: 'Taidghfantino wants fireworks. Big attacking moments are boosted tonight.',
+    effect: { chanceBoost: 0.08, longShotBoost: 0.04 }
+  },
+  {
+    id: 'all-out-benches',
+    title: 'Empty The Bench',
+    text: 'Managers are told to use everybody. Two extra substitutions are allowed.',
+    effect: { extraSubs: 2 }
   }
 ];
 
@@ -223,6 +253,63 @@ function createGeneratedTeam(name, flag, ratings) {
   ]);
 }
 
+const WORLD_CUP_2026_FIFA_RANK = {
+  Argentina: 1,
+  Spain: 2,
+  France: 3,
+  England: 4,
+  Portugal: 5,
+  Brazil: 6,
+  Morocco: 7,
+  Netherlands: 8,
+  Belgium: 9,
+  Germany: 10,
+  Croatia: 11,
+  Colombia: 13,
+  Mexico: 14,
+  Senegal: 15,
+  Uruguay: 16,
+  USA: 17,
+  Japan: 18,
+  Switzerland: 19,
+  Iran: 20,
+  'Türkiye': 22,
+  Ecuador: 23,
+  Austria: 24,
+  'South Korea': 25,
+  Australia: 27,
+  Algeria: 28,
+  Egypt: 29,
+  Canada: 30,
+  Norway: 31,
+  'Ivory Coast': 33,
+  Panama: 34,
+  Sweden: 38,
+  Czechia: 40,
+  Paraguay: 41,
+  Scotland: 42,
+  Tunisia: 45,
+  'DR Congo': 46,
+  Uzbekistan: 50,
+  Qatar: 56,
+  Iraq: 57,
+  'South Africa': 60,
+  'Saudi Arabia': 61,
+  Jordan: 63,
+  'Bosnia and Herzegovina': 64,
+  'Cape Verde': 67,
+  Ghana: 73,
+  Haiti: 82,
+  'Curaçao': 83,
+  'New Zealand': 85
+};
+
+function getWorldCupFifaRank(teamName) {
+  return WORLD_CUP_2026_FIFA_RANK[teamName] ?? 999;
+}
+
+SAMPLE_TEAMS.sort((a, b) => getWorldCupFifaRank(a.name) - getWorldCupFifaRank(b.name) || a.name.localeCompare(b.name));
+
 let audioContext = null;
 let liveInterval = null;
 let pendingTimeouts = [];
@@ -317,7 +404,8 @@ function sanitizeSettings(raw = {}) {
   return {
     sounds: raw.sounds !== false,
     taidghfantino: raw.taidghfantino !== false,
-    matchLength: [4, 7, 10].includes(Number(raw.matchLength)) ? Number(raw.matchLength) : 7
+    difficulty: Object.prototype.hasOwnProperty.call(DIFFICULTIES, raw.difficulty) ? raw.difficulty : 'normal',
+    matchLength: [4, 7, 10].includes(Number(raw.matchLength)) ? Number(raw.matchLength) : 4
   };
 }
 
@@ -413,15 +501,16 @@ function startFriendlyMatch() {
   appState.screen = 'match';
   render();
   if (!rule) {
-    playWhistle();
+    playStartWhistle();
     startLiveLoop();
   }
 }
 
 function createMatch(homeTeam, awayTeam, setup, rule) {
-  const difficulty = DIFFICULTIES[setup.difficulty] || DIFFICULTIES.normal;
-  const matchLength = Number(appState.settings.matchLength || 7);
-  const segmentRange = MATCH_LENGTHS[matchLength]?.segmentRange || MATCH_LENGTHS[7].segmentRange;
+  const difficultyKey = appState.settings.difficulty || setup.difficulty || 'normal';
+  const difficulty = DIFFICULTIES[difficultyKey] || DIFFICULTIES.normal;
+  const matchLength = Number(appState.settings.matchLength || 4);
+  const segmentRange = MATCH_LENGTHS[matchLength]?.segmentRange || MATCH_LENGTHS[4].segmentRange;
   const home = buildMatchTeam(homeTeam, 'home', setup, difficulty, rule);
   const away = buildMatchTeam(awayTeam, 'away', setup, difficulty, rule);
 
@@ -429,7 +518,7 @@ function createMatch(homeTeam, awayTeam, setup, rule) {
     id: `match-${Date.now()}`,
     createdAt: Date.now(),
     stage: 'Friendly Match',
-    difficulty: setup.difficulty,
+    difficulty: difficultyKey,
     controlSide: setup.controlSide,
     knockoutFinish: setup.knockoutFinish,
     phase: 'live',
@@ -557,7 +646,7 @@ function renderRotateNotice() {
 function renderMenuScreen() {
   return `
     <div class="card compact-card menu-main-card">
-      <h1 class="big-title">World Cup 2026 - Taidghfantino</h1>
+      <h1 class="big-title">World Cup 2026<span class="big-title-subline">with Taidghfantino</span></h1>
       <div class="subtitle">Choose how you want to play.</div>
       <div class="menu-mode-grid stacked-modes">
         <button data-action="go-setup-one">Tournament - Play as one team</button>
@@ -592,6 +681,15 @@ function renderSettingsScreen() {
             <small>Enable the special boss rule popup before matches.</small>
           </div>
           <input type="checkbox" data-setting="taidghfantino" ${appState.settings.taidghfantino ? 'checked' : ''} />
+        </div>
+        <div class="toggle-row setting-select-row">
+          <div>
+            <strong>Difficulty</strong><br />
+            <small>Set the default challenge for friendly matches and every tournament mode.</small>
+          </div>
+          <select data-setting-select="difficulty" class="setting-inline-select">
+            ${Object.entries(DIFFICULTIES).map(([key, value]) => `<option value="${key}" ${key === appState.settings.difficulty ? 'selected' : ''}>${value.label}</option>`).join('')}
+          </select>
         </div>
         <div class="toggle-row setting-select-row">
           <div>
@@ -645,9 +743,7 @@ function renderSetupScreen() {
         </div>
         <div class="form-row compact-form-row">
           <label>Difficulty</label>
-          <select data-setup="difficulty">
-            ${Object.entries(DIFFICULTIES).map(([key, value]) => `<option value="${key}" ${key === appState.friendlySetup.difficulty ? 'selected' : ''}>${value.label}</option>`).join('')}
-          </select>
+          <div class="small-note">${DIFFICULTIES[appState.settings.difficulty]?.label || 'Normal'} — change this in Settings.</div>
         </div>
       </div>
 
@@ -692,9 +788,7 @@ function renderTournamentSetupScreen() {
         </div>
         <div class="form-row compact-form-row">
           <label>Difficulty</label>
-          <select data-tournament-setup="difficulty">
-            ${Object.entries(DIFFICULTIES).map(([key, value]) => `<option value="${key}" ${key === appState.tournamentSetup.difficulty ? 'selected' : ''}>${value.label}</option>`).join('')}
-          </select>
+          <div class="small-note">${DIFFICULTIES[appState.settings.difficulty]?.label || 'Normal'} — change this in Settings.</div>
         </div>
       </div>
 
@@ -768,20 +862,20 @@ function renderMatchScreen() {
     <div class="match-shell">
       <div class="card scoreboard scoreboard-top">
         <div class="score-top match-score-top">
-          <div>
-            <div class="title-badge">${match.stage}</div>
-            <div class="small-note">${match.rule ? `Taidghfantino rule: ${match.rule.title}` : 'Standard rules this match'}</div>
+          <div class="match-header-meta">
+            <div class="title-badge match-stage-badge">${match.stage}</div>
+            <div class="small-note match-rule-note">${match.rule ? `Taidghfantino rule: ${match.rule.title}` : 'Standard rules this match'}</div>
           </div>
           <div class="match-top-actions">
-            <button class="ghost" data-action="save-match">Save Match</button>
-            <button class="ghost" data-action="go-menu-from-match">Save & Exit</button>
+            <button class="ghost match-header-btn" data-action="save-match">Save Match</button>
+            <button class="ghost match-header-btn" data-action="go-menu-from-match">Save & Exit</button>
           </div>
         </div>
 
         <div class="team-score-row top-score-row">
-          <div class="team-name-large">${match.home.info.name}</div>
+          <div class="team-name-large team-name-home">${match.home.info.name}</div>
           <div class="score-big">${match.score.home} - ${match.score.away}</div>
-          <div class="team-name-large" style="justify-content:flex-end;">${match.away.info.name}</div>
+          <div class="team-name-large team-name-away">${match.away.info.name}</div>
         </div>
 
         <div class="live-strip">
@@ -831,6 +925,10 @@ function easeInOutProgress(value) {
   return 0.5 - Math.cos(Math.PI * t) / 2;
 }
 
+function lerp(start, end, value) {
+  return start + (end - start) * clamp(value, 0, 1);
+}
+
 function getPitchControlBias(match) {
   const minute = match.displayMinute || 0;
   const progress = segmentPercent(match) / 100;
@@ -851,19 +949,139 @@ function getPitchControlBias(match) {
   return clamp(homeControl, 0.14, 0.86);
 }
 
+function getRelativePitchProgress(ballX, attackSide) {
+  return clamp(attackSide === 'home' ? ballX : 100 - ballX, 12, 88);
+}
+
+function absolutePitchXFromProgress(progressToGoal, attackSide) {
+  return clamp(attackSide === 'home' ? progressToGoal : 100 - progressToGoal, 10, 90);
+}
+
+function buildPossessionNodes(visual, startProgress, carryY) {
+  const startY = clamp(carryY || 50, 16, 84);
+  const switchDirection = visual.laneBias >= 0 ? -1 : 1;
+  const wideBias = visual.laneBias * 13;
+  const buildY = clamp(startY + wideBias * 0.45 + randomInt(-10, 10), 16, 84);
+  const recycleY = clamp(50 + switchDirection * randomInt(8, 18), 16, 84);
+  const createY = clamp(50 + wideBias * 0.75 + randomInt(-12, 12), 16, 84);
+  const finalY = clamp(50 + switchDirection * randomInt(4, 14), 22, 78);
+
+  const buildMid = clamp(lerp(startProgress, visual.buildTarget, 0.46), startProgress + 2, visual.buildTarget);
+  const createMid = clamp(lerp(visual.buildTarget, visual.createTarget, 0.55), visual.buildTarget + 2, visual.createTarget);
+
+  return [
+    { t: 0, progress: startProgress, y: startY },
+    { t: 0.16, progress: buildMid, y: buildY },
+    { t: 0.34, progress: visual.buildTarget, y: recycleY },
+    { t: 0.56, progress: createMid, y: createY },
+    { t: 0.78, progress: visual.createTarget, y: clamp((createY + finalY) / 2 + randomInt(-5, 5), 18, 82) },
+    { t: 1, progress: visual.finishTarget, y: finalY }
+  ];
+}
+
+function seedPitchPossessionPlan(visual, attackSide, startProgress = 24, carryY = 50) {
+  const safeStart = clamp(startProgress, 18, 82);
+  const buildTarget = clamp(safeStart + (safeStart < 40 ? randomInt(8, 13) : randomInt(3, 7)), safeStart, 54);
+  const createTarget = clamp(Math.max(buildTarget + randomInt(7, 12), safeStart + 10), buildTarget + 1, 74);
+  const finishTarget = clamp(Math.max(createTarget + randomInt(6, 10), safeStart + 18), createTarget + 1, 86);
+
+  visual.attackSide = attackSide;
+  visual.possessionElapsed = 0;
+  visual.possessionDuration = randomInt(6200, 9200);
+  visual.possessionStartProgress = safeStart;
+  visual.buildTarget = buildTarget;
+  visual.createTarget = createTarget;
+  visual.finishTarget = finishTarget;
+  visual.laneBias = clamp(((carryY || 50) - 50) / 18 + (Math.random() * 0.7 - 0.35), -1, 1);
+  visual.laneSeed = Math.random() * Math.PI * 2;
+  visual.possessionNodes = buildPossessionNodes(visual, safeStart, carryY);
+}
+
+function getPitchProgressForPossession(visual, possessionT) {
+  const nodes = visual.possessionNodes || [];
+  if (!nodes.length) return visual.possessionStartProgress || 24;
+  const t = clamp(possessionT, 0, 1);
+  let from = nodes[0];
+  let to = nodes[nodes.length - 1];
+
+  for (let index = 0; index < nodes.length - 1; index += 1) {
+    if (t >= nodes[index].t && t <= nodes[index + 1].t) {
+      from = nodes[index];
+      to = nodes[index + 1];
+      break;
+    }
+  }
+
+  const localT = easeInOutProgress((t - from.t) / Math.max(0.0001, to.t - from.t));
+  return lerp(from.progress, to.progress, localT);
+}
+
+function buildBallTargetForVisual(visual, possessionT) {
+  const nodes = visual.possessionNodes || [];
+  if (!nodes.length) {
+    const fallbackProgress = getPitchProgressForPossession(visual, possessionT);
+    return {
+      x: absolutePitchXFromProgress(fallbackProgress, visual.attackSide),
+      y: 50,
+      progressToGoal: fallbackProgress,
+      phaseInfo: getPitchPhase(fallbackProgress)
+    };
+  }
+
+  const t = clamp(possessionT, 0, 1);
+  let from = nodes[0];
+  let to = nodes[nodes.length - 1];
+
+  for (let index = 0; index < nodes.length - 1; index += 1) {
+    if (t >= nodes[index].t && t <= nodes[index + 1].t) {
+      from = nodes[index];
+      to = nodes[index + 1];
+      break;
+    }
+  }
+
+  const localT = easeInOutProgress((t - from.t) / Math.max(0.0001, to.t - from.t));
+  const progressToGoal = lerp(from.progress, to.progress, localT);
+  const phaseInfo = getPitchPhase(progressToGoal);
+  const ballX = absolutePitchXFromProgress(progressToGoal, visual.attackSide);
+  const ballY = clamp(lerp(from.y, to.y, localT), 14, 86);
+
+  return {
+    x: ballX,
+    y: ballY,
+    progressToGoal,
+    phaseInfo
+  };
+}
+
 function ensurePitchVisual(match) {
   if (!match.pitchVisual) {
     const homeControl = getPitchControlBias(match);
-    match.pitchVisual = {
-      attackSide: homeControl >= 0.5 ? 'home' : 'away',
+    const attackSide = homeControl >= 0.5 ? 'home' : 'away';
+    const visual = {
+      attackSide,
       possessionElapsed: 0,
-      possessionDuration: randomInt(5600, 8600),
-      progressToGoal: 26,
-      transitionElapsed: 0,
-      transitionDuration: 0,
-      transitionFrom: null,
-      lastBall: null
+      possessionDuration: 0,
+      possessionStartProgress: 24,
+      buildTarget: 36,
+      createTarget: 58,
+      finishTarget: 80,
+      progressToGoal: 24,
+      laneBias: 0,
+      laneSeed: 0,
+      ball: null,
+      targetBall: null,
+      lastBall: null,
+      phaseInfo: getPitchPhase(24)
     };
+    seedPitchPossessionPlan(visual, attackSide, 24, 50);
+    const openingBall = buildBallTargetForVisual(visual, 0);
+    visual.ball = { x: openingBall.x, y: openingBall.y };
+    visual.targetBall = { ...visual.ball };
+    visual.lastBall = { ...visual.ball };
+    visual.progressToGoal = openingBall.progressToGoal;
+    visual.phaseInfo = openingBall.phaseInfo;
+    match.pitchVisual = visual;
   }
   return match.pitchVisual;
 }
@@ -872,8 +1090,20 @@ function updatePitchVisual(match, elapsedMs = 0) {
   const visual = ensurePitchVisual(match);
 
   if (appState.overlay?.type === 'chance') {
-    visual.attackSide = appState.overlay.shooterSide;
-    visual.progressToGoal = 86;
+    const shooterSide = appState.overlay.shooterSide;
+    const targetX = absolutePitchXFromProgress(84, shooterSide);
+    const targetY = 50;
+    visual.attackSide = shooterSide;
+    visual.progressToGoal = 84;
+    visual.phaseInfo = getPitchPhase(84);
+    visual.targetBall = { x: targetX, y: targetY };
+    if (!visual.ball) visual.ball = { ...visual.targetBall };
+    if (elapsedMs > 0) {
+      const follow = clamp(elapsedMs / 620, 0.14, 0.42);
+      visual.ball.x += (visual.targetBall.x - visual.ball.x) * follow;
+      visual.ball.y += (visual.targetBall.y - visual.ball.y) * follow;
+    }
+    visual.lastBall = { ...visual.ball };
     return visual;
   }
 
@@ -881,37 +1111,27 @@ function updatePitchVisual(match, elapsedMs = 0) {
 
   if (elapsedMs > 0) {
     visual.possessionElapsed += elapsedMs;
-    if (visual.transitionDuration > 0) {
-      visual.transitionElapsed = Math.min(visual.transitionDuration, visual.transitionElapsed + elapsedMs);
-      if (visual.transitionElapsed >= visual.transitionDuration) {
-        visual.transitionDuration = 0;
-        visual.transitionFrom = null;
-      }
-    }
     if (visual.possessionElapsed >= visual.possessionDuration) {
-      const previousSide = visual.attackSide;
+      const previousBall = visual.ball || visual.targetBall || { x: absolutePitchXFromProgress(visual.progressToGoal || 24, visual.attackSide), y: 50 };
       const holdBias = visual.attackSide === 'home' ? 0.08 : -0.08;
       const nextHomeChance = clamp(homeControl + holdBias, 0.12, 0.88);
-      visual.attackSide = Math.random() < nextHomeChance ? 'home' : 'away';
-      visual.possessionElapsed = 0;
-      visual.possessionDuration = randomInt(5600, 8600);
-      if (visual.attackSide !== previousSide && visual.lastBall) {
-        visual.transitionFrom = { ...visual.lastBall };
-        visual.transitionElapsed = 0;
-        visual.transitionDuration = 520;
-      }
+      const nextSide = Math.random() < nextHomeChance ? 'home' : 'away';
+      const startProgress = getRelativePitchProgress(previousBall.x, nextSide);
+      seedPitchPossessionPlan(visual, nextSide, startProgress, previousBall.y);
     }
   }
 
   const possessionT = clamp(visual.possessionElapsed / Math.max(1, visual.possessionDuration), 0, 1);
-  if (possessionT < 0.3) {
-    visual.progressToGoal = 22 + easeInOutProgress(possessionT / 0.3) * 15;
-  } else if (possessionT < 0.72) {
-    visual.progressToGoal = 37 + easeInOutProgress((possessionT - 0.3) / 0.42) * 29;
-  } else {
-    visual.progressToGoal = 66 + easeInOutProgress((possessionT - 0.72) / 0.28) * 17;
+  const targetBall = buildBallTargetForVisual(visual, possessionT);
+  visual.progressToGoal = targetBall.progressToGoal;
+  visual.phaseInfo = targetBall.phaseInfo;
+  visual.targetBall = { x: targetBall.x, y: targetBall.y };
+
+  if (!visual.ball || elapsedMs > 0) {
+    visual.ball = { ...visual.targetBall };
   }
 
+  visual.lastBall = { ...visual.ball };
   return visual;
 }
 
@@ -987,31 +1207,56 @@ function getPhaseTuning(teamState, side, attackSide, phaseInfo) {
   };
 }
 
-function buildFormationPlayers(teamState, side, minute, attackSide, phaseInfo) {
+function buildFormationPlayers(teamState, side, minute, attackSide, phaseInfo, ball) {
   const formation = getFormationOption(teamState.formation);
   const tactic = TACTIC_OPTIONS[teamState.tactic];
-  const direction = side === 'home' ? 1 : -1;
-  const tuning = getPhaseTuning(teamState, side, attackSide, phaseInfo);
-  const players = [{ x: side === 'home' ? 8 : 92, y: 50 }];
+  const attackDirection = side === 'home' ? 1 : -1;
+  const ownGoalDirection = -attackDirection;
+  const attacking = side === attackSide;
+  const ballX = clamp(ball?.x ?? (side === 'home' ? 24 : 76), 10, 90);
+  const ballY = clamp(ball?.y ?? 50, 10, 90);
+  const players = [{ x: side === 'home' ? 8 : 92, y: clamp(50 + (ballY - 50) * 0.16, 34, 66) }];
 
   formation.bands.forEach((band, bandIndex) => {
     const bandCount = Math.max(1, formation.bands.length - 1);
     const relativeBand = bandIndex / bandCount;
     const baseLineX = side === 'home' ? band.x : 100 - band.x;
-    const tacticPush = (tactic.attack * 0.34 - tactic.defence * 0.18 + formation.attack * 0.3 - formation.defence * 0.14) * tuning.tacticScale * (0.65 + relativeBand * 0.24);
-    const lineShift = tuning.baseShift + relativeBand * tuning.bandAdvance + tuning.supportBias * (relativeBand - 0.35) * 3.5;
-    const lineX = baseLineX + direction * ((lineShift + tacticPush) * tuning.compactX);
-    const spreadHalf = 34 * tuning.widthFactor * (0.92 + Math.abs(0.5 - relativeBand) * 0.18);
+    const widthFactor = attacking
+      ? 1.02 + formation.width * 0.06 + (phaseInfo.attackKey === 'create' ? 0.08 : 0)
+      : (phaseInfo.attackKey === 'finish' ? 0.72 : 0.86) + formation.width * 0.03;
+
+    let lineX = baseLineX;
+    if (attacking) {
+      const ballTrail = phaseInfo.attackKey === 'build'
+        ? lerp(-22, 4, relativeBand)
+        : phaseInfo.attackKey === 'create'
+          ? lerp(-24, 6, relativeBand)
+          : lerp(-28, 2, relativeBand);
+      const targetLineX = ballX + attackDirection * ballTrail;
+      const phasePull = phaseInfo.attackKey === 'build' ? 0.42 : phaseInfo.attackKey === 'create' ? 0.57 : 0.72;
+      lineX = lerp(baseLineX, targetLineX, clamp(phasePull + tactic.attack * 0.018, 0.32, 0.86));
+    } else {
+      const screenDepth = phaseInfo.attackKey === 'build'
+        ? 10 + relativeBand * 15
+        : phaseInfo.attackKey === 'create'
+          ? 12 + relativeBand * 17
+          : 9 + relativeBand * 15;
+      const targetLineX = ballX + ownGoalDirection * screenDepth;
+      const phasePull = phaseInfo.attackKey === 'build' ? 0.4 : phaseInfo.attackKey === 'create' ? 0.56 : 0.72;
+      lineX = lerp(baseLineX, targetLineX, clamp(phasePull + Math.max(0, tactic.defence) * 0.02, 0.28, 0.84));
+    }
+
+    const spreadHalf = 32 * widthFactor * (0.92 + Math.abs(0.5 - relativeBand) * 0.14);
     const ySlots = spreadLine(band.count, 50 - spreadHalf, 50 + spreadHalf);
 
     ySlots.forEach((slotY, slotIndex) => {
-      const swayX = Math.sin(minute / 4.8 + bandIndex * 0.8 + slotIndex) * 1.1;
-      const swayY = Math.cos(minute / 3.8 + bandIndex + slotIndex * 0.7) * 2.2;
-      const lateralCompression = 1 - (1 - tuning.compactness) * 0.7;
-      const lateral = (slotY - 50) * (lateralCompression - 1);
+      const swayX = Math.sin(minute / 5.2 + bandIndex * 0.8 + slotIndex * 0.6) * (attacking ? 0.7 : 0.55);
+      const swayY = Math.cos(minute / 4.1 + bandIndex + slotIndex * 0.65) * (attacking ? 1.5 : 1.25);
+      const bandShiftY = (ballY - 50) * (attacking ? (0.18 + relativeBand * 0.18) : (0.24 + (1 - relativeBand) * 0.08));
+      const closeToBallY = (ballY - slotY) * (attacking ? (0.12 + relativeBand * 0.1) : (0.18 + (1 - relativeBand) * 0.06));
       players.push({
         x: clamp(lineX + swayX, 6, 94),
-        y: clamp(slotY + lateral + swayY, 10, 90)
+        y: clamp(slotY + bandShiftY + closeToBallY + swayY, 10, 90)
       });
     });
   });
@@ -1019,40 +1264,90 @@ function buildFormationPlayers(teamState, side, minute, attackSide, phaseInfo) {
   return players.slice(0, 11);
 }
 
+function clusterPlayersAroundBall(players, side, role, ball) {
+  const adjusted = players.map((player) => ({ ...player }));
+  const attackDirection = side === 'home' ? 1 : -1;
+  const ownGoalDirection = -attackDirection;
+  const ballX = clamp(ball.x, 10, 90);
+  const ballY = clamp(ball.y, 10, 90);
+  const outfield = adjusted.slice(1).map((player, index) => ({
+    player,
+    index: index + 1,
+    distance: Math.hypot(player.x - ballX, player.y - ballY)
+  })).sort((a, b) => a.distance - b.distance);
+
+  if (!outfield.length) return adjusted;
+
+  if (role === 'attack') {
+    outfield[0].player.x = clamp(ballX - attackDirection * 1.2, 8, 92);
+    outfield[0].player.y = clamp(ballY, 10, 90);
+    if (outfield[1]) {
+      outfield[1].player.x = clamp(ballX - attackDirection * 5.8, 8, 92);
+      outfield[1].player.y = clamp(ballY + (outfield[1].player.y >= ballY ? 5.5 : -5.5), 10, 90);
+    }
+    if (outfield[2]) {
+      outfield[2].player.x = clamp(ballX + attackDirection * 4.2, 8, 92);
+      outfield[2].player.y = clamp(ballY + (outfield[2].player.y >= ballY ? 7 : -7), 10, 90);
+    }
+  } else {
+    outfield[0].player.x = clamp(ballX + ownGoalDirection * 2.4, 8, 92);
+    outfield[0].player.y = clamp(ballY, 10, 90);
+    if (outfield[1]) {
+      outfield[1].player.x = clamp(ballX + ownGoalDirection * 6.8, 8, 92);
+      outfield[1].player.y = clamp(ballY + (outfield[1].player.y >= ballY ? 5 : -5), 10, 90);
+    }
+  }
+
+  adjusted[0].y = clamp(ballY + (role === 'defend' ? 0.22 : 0.14) * (50 - ballY), 34, 66);
+  return adjusted;
+}
+
 function buildPitchFrame(match) {
   const minute = match.displayMinute || 0;
   const visual = updatePitchVisual(match, 0);
   const attackSide = visual.attackSide;
-  const progressToGoal = appState.overlay?.type === 'chance' ? 86 : visual.progressToGoal;
+  const shapeBall = visual.ball || visual.targetBall || { x: absolutePitchXFromProgress(visual.progressToGoal || 24, attackSide), y: 50 };
+  const progressToGoal = getRelativePitchProgress(shapeBall.x, attackSide);
   const phaseInfo = getPitchPhase(progressToGoal);
 
-  const homePlayers = buildFormationPlayers(match.home, 'home', minute, attackSide, phaseInfo);
-  const awayPlayers = buildFormationPlayers(match.away, 'away', minute, attackSide, phaseInfo);
-  const attackPlayers = attackSide === 'home' ? homePlayers : awayPlayers;
-  const phaseRouteMap = {
-    build: { nodes: [0, 1, 3, 4, 6], start: 22, end: 37 },
-    create: { nodes: [6, 7, 8, 9], start: 37, end: 66 },
-    finish: { nodes: [9, 8, 10], start: 66, end: 83 }
-  };
-  const route = phaseRouteMap[phaseInfo.attackKey] || phaseRouteMap.create;
-  const phaseTravel = clamp((progressToGoal - route.start) / Math.max(1, route.end - route.start), 0, 1);
-  const segmentFloat = phaseTravel * Math.max(1, route.nodes.length - 1);
-  const segmentIndex = Math.min(route.nodes.length - 2, Math.floor(segmentFloat));
-  const routeT = segmentFloat - segmentIndex;
-  const from = attackPlayers[Math.min(route.nodes[segmentIndex], attackPlayers.length - 1)] || attackPlayers[0];
-  const to = attackPlayers[Math.min(route.nodes[segmentIndex + 1], attackPlayers.length - 1)] || attackPlayers[attackPlayers.length - 1];
-  const arcLift = phaseInfo.attackKey === 'finish' ? 2.8 : phaseInfo.attackKey === 'create' ? 1.8 : 1.1;
-  let ballX = from.x + (to.x - from.x) * routeT;
-  let ballY = from.y + (to.y - from.y) * routeT - Math.sin(routeT * Math.PI) * arcLift;
-  ballX = clamp(ballX, 10, 90);
-  ballY = clamp(ballY, 10, 90);
+  let homePlayers = buildFormationPlayers(match.home, 'home', minute, attackSide, phaseInfo, shapeBall);
+  let awayPlayers = buildFormationPlayers(match.away, 'away', minute, attackSide, phaseInfo, shapeBall);
 
-  if (visual.transitionDuration > 0 && visual.transitionFrom) {
-    const blend = easeInOutProgress(visual.transitionElapsed / Math.max(1, visual.transitionDuration));
-    ballX = visual.transitionFrom.x + (ballX - visual.transitionFrom.x) * blend;
-    ballY = visual.transitionFrom.y + (ballY - visual.transitionFrom.y) * blend;
+  homePlayers = clusterPlayersAroundBall(homePlayers, 'home', attackSide === 'home' ? 'attack' : 'defend', shapeBall);
+  awayPlayers = clusterPlayersAroundBall(awayPlayers, 'away', attackSide === 'away' ? 'attack' : 'defend', shapeBall);
+
+  const attackPlayers = attackSide === 'home' ? homePlayers : awayPlayers;
+  const possessionT = clamp(visual.possessionElapsed / Math.max(1, visual.possessionDuration), 0, 1);
+  const passRoute = [
+    { t: 0, index: 0 },
+    { t: 0.12, index: 1 },
+    { t: 0.26, index: 3 },
+    { t: 0.4, index: 5 },
+    { t: 0.56, index: 6 },
+    { t: 0.72, index: 7 },
+    { t: 0.86, index: 8 },
+    { t: 1, index: 9 }
+  ];
+
+  let passFrom = passRoute[0];
+  let passTo = passRoute[passRoute.length - 1];
+  for (let index = 0; index < passRoute.length - 1; index += 1) {
+    if (possessionT >= passRoute[index].t && possessionT <= passRoute[index + 1].t) {
+      passFrom = passRoute[index];
+      passTo = passRoute[index + 1];
+      break;
+    }
   }
 
+  const routeFrom = attackPlayers[Math.min(passFrom.index, attackPlayers.length - 1)] || attackPlayers[0];
+  const routeTo = attackPlayers[Math.min(passTo.index, attackPlayers.length - 1)] || attackPlayers[attackPlayers.length - 1];
+  const passT = easeInOutProgress((possessionT - passFrom.t) / Math.max(0.0001, passTo.t - passFrom.t));
+  const arcLift = phaseInfo.attackKey === 'finish' ? 2.4 : phaseInfo.attackKey === 'create' ? 1.6 : 1.1;
+  const ballX = clamp(lerp(routeFrom.x, routeTo.x, passT), 10, 90);
+  const ballY = clamp(lerp(routeFrom.y, routeTo.y, passT) - Math.sin(passT * Math.PI) * arcLift, 10, 90);
+
+  visual.progressToGoal = progressToGoal;
+  visual.phaseInfo = phaseInfo;
   visual.lastBall = { x: ballX, y: ballY };
 
   return {
@@ -1105,44 +1400,59 @@ function renderBirdsEyePitch(match) {
   `;
 }
 
+function renderSubSelectionButton(player, selected = false, mode = 'out') {
+  const secondaryNote = mode === 'out'
+    ? `${player.injured ? 'Injured' : 'Available'}${player.yellow ? ' • On a yellow' : ''}`
+    : 'Bench option • Ready to enter';
+
+  return `
+    <button class="select-player-btn ${selected ? 'selected' : ''}" ${mode === 'out' ? `data-sub-out="${player.id}"` : `data-sub-in="${player.id}"`}>
+      <span class="sub-btn-topline">
+        <strong>${player.pos}</strong>
+        <span class="sub-btn-stamina">Stamina ${Math.round(player.staminaCurrent)}</span>
+      </span>
+      <span class="sub-btn-name">${player.name}</span>
+      <span class="small-note">${secondaryNote}</span>
+    </button>
+  `;
+}
+
 function renderSubsTeamBoard(teamState, overlay = null, editable = false) {
   const active = onFieldPlayers(teamState).filter((player) => !player.sentOff);
   const bench = benchPlayers(teamState);
   return `
-    <div class="card compact-card subs-team-board">
-      <div class="team-header">
+    <div class="card compact-card subs-team-board ${editable ? 'editable' : 'read-only'}">
+      <div class="team-header subs-team-header">
         <div>
-          <h2 style="margin:0;">${teamState.info.name}</h2>
-          <div class="small-note">${teamState.formation || DEFAULT_FORMATION} • ${TACTIC_OPTIONS[teamState.tactic].label} • Subs ${teamState.subsUsed}/${teamState.maxSubs}</div>
+          <div class="subs-board-kicker">${editable ? 'Your team' : 'Other team'}</div>
+          <h2 class="subs-team-title">${teamState.info.name}</h2>
+        </div>
+        <div class="subs-board-summary">
+          <span class="subs-info-pill">${teamState.formation || DEFAULT_FORMATION}</span>
+          <span class="subs-info-pill">${TACTIC_OPTIONS[teamState.tactic].label}</span>
+          <span class="subs-info-pill">Subs ${teamState.subsUsed}/${teamState.maxSubs}</span>
         </div>
       </div>
       <div class="subs-sections">
-        <div>
-          <h3>${editable ? 'Take off' : 'On the pitch'}</h3>
+        <div class="subs-section-block">
+          <h3 class="subs-section-title">${editable ? 'Take off' : 'On the pitch'}</h3>
           <div class="team-list">
-            ${active.map((player) => editable ? `
-              <button class="select-player-btn ${overlay?.outPlayerId === player.id ? 'selected' : ''}" data-sub-out="${player.id}">
-                ${player.pos} • ${player.name}<br />
-                <span class="small-note">Stamina ${Math.round(player.staminaCurrent)}${player.injured ? ' • injured' : ''}${player.yellow ? ' • on a yellow' : ''}</span>
-              </button>
-            ` : renderPlayerRow(player)).join('')}
+            ${active.map((player) => editable ? renderSubSelectionButton(player, overlay?.outPlayerId === player.id, 'out') : renderPlayerRow(player)).join('')}
           </div>
         </div>
-        <div>
-          <h3>${editable ? 'Bring on' : 'Bench'}</h3>
+        <div class="subs-section-block">
+          <h3 class="subs-section-title">${editable ? 'Bring on' : 'Bench'}</h3>
           <div class="bench-list">
-            ${bench.length ? bench.map((player) => editable ? `
-              <button class="select-player-btn ${overlay?.inPlayerId === player.id ? 'selected' : ''}" data-sub-in="${player.id}">
-                ${player.pos} • ${player.name}<br />
-                <span class="small-note">Rating ${player.rating} • Fresh legs ${Math.round(player.staminaCurrent)}</span>
-              </button>
-            ` : renderPlayerRow(player, true)).join('') : '<div class="small-note">No bench players left.</div>'}
+            ${bench.length ? bench.map((player) => editable ? renderSubSelectionButton(player, overlay?.inPlayerId === player.id, 'in') : renderPlayerRow(player, true)).join('') : '<div class="small-note subs-empty-note">No bench players left.</div>'}
           </div>
         </div>
       </div>
       ${editable ? `<div class="action-row subs-board-actions">
-        <button data-action="confirm-sub" ${overlay?.outPlayerId && overlay?.inPlayerId ? '' : 'disabled'}>Confirm Sub</button>
-        <button class="secondary" data-action="close-overlay">Back to Match</button>
+        <div class="small-note subs-action-note">Choose one outgoing player and one incoming player.</div>
+        <div class="subs-board-button-row">
+          <button data-action="confirm-sub" ${overlay?.outPlayerId && overlay?.inPlayerId ? '' : 'disabled'}>Confirm Sub</button>
+          <button class="secondary" data-action="close-overlay">Back to Match</button>
+        </div>
       </div>` : ''}
     </div>
   `;
@@ -1199,7 +1509,8 @@ function renderPlayerRow(player, bench = false) {
       <div>
         <div>${player.name}</div>
         <small>
-          ${bench ? 'Bench' : `Rating ${player.rating}`}
+          Stamina ${Math.round(player.staminaCurrent)}
+          ${bench ? ' • bench' : ''}
           ${player.yellow ? ' • 🟨' + player.yellow : ''}
           ${player.red ? ' • 🟥' : ''}
           ${player.injured ? ' • injured' : ''}
@@ -1266,7 +1577,7 @@ function renderChanceOverlay(overlay) {
                   if (overlay.selectedZone === null && !overlay.resolved) classes.push('selectable');
                   if (overlay.selectedZone === zone.id) classes.push('selected');
                   if (overlay.guessZone === zone.id) classes.push('guessed');
-                  if (overlay.resolved && overlay.targetZone === zone.id) classes.push(overlay.outcome === 'goal' ? 'outcome-goal' : (overlay.outcome === 'saved' ? 'outcome-save' : 'outcome-miss'));
+                  if (overlay.resolved && overlay.targetZone === zone.id && overlay.outcome === 'goal') classes.push('outcome-goal');
                   return `<div class="${classes.join(' ')}" data-zone="${zone.id}"></div>`;
                 }).join('')}
               </div>
@@ -1299,8 +1610,16 @@ function renderSubsOverlay(overlay) {
     <div class="overlay">
       <div class="overlay-card subs-screen-card">
         <div class="title-badge">🔁 Substitutions</div>
-        <h2>Substitution screen</h2>
-        <div class="subtitle" style="font-size:16px; margin-bottom:12px;">Select one player to take off and one to bring on. Both teams are shown side by side so match play can stay compact.</div>
+        <div class="subs-screen-head">
+          <div>
+            <h2>Substitution screen</h2>
+            <div class="subtitle subs-screen-subtitle">Pick one player to come off and one to come on. Stamina is shown across both teams so formation decisions stay quick and readable.</div>
+          </div>
+          <div class="subs-screen-legend">
+            <span class="subs-legend-pill editable">Your team</span>
+            <span class="subs-legend-pill">Other team</span>
+          </div>
+        </div>
         <div class="subs-side-by-side">
           ${renderSubsTeamBoard(team, overlay, true)}
           ${renderSubsTeamBoard(opponent, null, false)}
@@ -1424,7 +1743,8 @@ function bindEvents() {
 
   document.querySelectorAll('[data-setting-select]').forEach((select) => {
     select.addEventListener('change', (event) => {
-      appState.settings[event.currentTarget.getAttribute('data-setting-select')] = Number(event.currentTarget.value);
+      const key = event.currentTarget.getAttribute('data-setting-select');
+      appState.settings[key] = key === 'matchLength' ? Number(event.currentTarget.value) : event.currentTarget.value;
       saveSettings();
       render();
     });
@@ -1573,7 +1893,7 @@ function handleAction(action) {
     case 'accept-rule':
       appState.overlay = null;
       render();
-      playWhistle();
+      playStartWhistle();
       startLiveLoop();
       return;
     case 'toggle-tactic': {
@@ -1661,12 +1981,54 @@ function startLiveLoop() {
   stopLiveLoop();
   const match = appState.currentMatch;
   if (!match || match.ended) return;
+  normaliseMatchClockState(match);
   match.phase = 'live';
   if (!match.segmentRemaining || match.segmentRemaining <= 0) {
-    startPeriod(match.periodIndex);
-    return;
+    scheduleNextSegment(false);
+    match.minute = clamp(typeof match.minute === 'number' ? match.minute : match.segmentMinuteStart, match.segmentMinuteStart, match.segmentMinuteEnd);
+    match.displayMinute = clamp(typeof match.displayMinute === 'number' ? match.displayMinute : match.minute, match.segmentMinuteStart, match.segmentMinuteEnd);
   }
   liveInterval = setInterval(tickLiveMatch, LIVE_TICK_MS);
+}
+
+function normaliseMatchClockState(match) {
+  if (!match?.periods?.length) return;
+
+  const minuteMark = Math.max(Number(match.displayMinute) || 0, Number(match.minute) || 0);
+  let inferredPeriodIndex = 0;
+  if (minuteMark >= 105) inferredPeriodIndex = 3;
+  else if (minuteMark >= 90) inferredPeriodIndex = 2;
+  else if (minuteMark >= 45) inferredPeriodIndex = 1;
+
+  const existingPeriod = match.periods[Number.isInteger(match.periodIndex) ? match.periodIndex : 0] || match.periods[0];
+  const existingPeriodEnd = existingPeriod.startMinute + existingPeriod.segmentMinutes * existingPeriod.segments;
+  if (!Number.isInteger(match.periodIndex) || minuteMark < existingPeriod.startMinute || minuteMark >= existingPeriodEnd) {
+    match.periodIndex = inferredPeriodIndex;
+  }
+  match.periodIndex = clamp(match.periodIndex, 0, match.periods.length - 1);
+
+  const period = match.periods[match.periodIndex] || match.periods[0];
+  const withinPeriodMinute = clamp(minuteMark - period.startMinute, 0, Math.max(0, period.segmentMinutes * period.segments - 0.001));
+  const inferredSegmentIndex = clamp(Math.floor(withinPeriodMinute / period.segmentMinutes), 0, period.segments - 1);
+
+  if (
+    !Number.isInteger(match.segmentIndex)
+    || match.segmentIndex < 0
+    || match.segmentIndex >= period.segments
+    || Math.abs((period.startMinute + period.segmentMinutes * match.segmentIndex) - minuteMark) >= period.segmentMinutes
+  ) {
+    match.segmentIndex = inferredSegmentIndex;
+  }
+
+  match.segmentMinuteStart = period.startMinute + period.segmentMinutes * match.segmentIndex;
+  match.segmentMinuteEnd = match.segmentMinuteStart + period.segmentMinutes;
+
+  if (typeof match.minute !== 'number' || Number.isNaN(match.minute)) {
+    match.minute = match.segmentMinuteStart;
+  }
+  if (typeof match.displayMinute !== 'number' || Number.isNaN(match.displayMinute)) {
+    match.displayMinute = match.minute;
+  }
 }
 
 function stopLiveLoop() {
@@ -1704,7 +2066,7 @@ function startPeriod(periodIndex) {
 function scheduleNextSegment(resetMinute = false) {
   const match = appState.currentMatch;
   const period = match.periods[match.periodIndex];
-  const [minDuration, maxDuration] = match.segmentRange || MATCH_LENGTHS[7].segmentRange;
+  const [minDuration, maxDuration] = match.segmentRange || MATCH_LENGTHS[4].segmentRange;
   match.segmentDuration = randomInt(minDuration, maxDuration) * 1000;
   match.segmentRemaining = match.segmentDuration;
   match.segmentProgress = 0;
@@ -1741,8 +2103,9 @@ function tickLiveMatch() {
 function tickStamina(team) {
   const tactic = TACTIC_OPTIONS[team.tactic];
   const formation = getFormationOption(team.formation);
+  const staminaTax = appState.currentMatch?.rule?.effect?.staminaTax || 0;
   onFieldPlayers(team).forEach((player) => {
-    const drain = 0.7 + tactic.stamina + Math.max(0, formation.press) * 0.08 + Math.max(0, formation.width) * 0.02 + (player.yellow ? 0.05 : 0) + (player.injured ? 0.3 : 0);
+    const drain = 0.7 + tactic.stamina + Math.max(0, formation.press) * 0.08 + Math.max(0, formation.width) * 0.02 + (player.yellow ? 0.05 : 0) + (player.injured ? 0.3 : 0) + staminaTax;
     player.staminaCurrent = Math.max(10, player.staminaCurrent - drain);
     player.minutesPlayed += 1;
   });
@@ -2019,13 +2382,13 @@ function goalkeeper(team) {
 }
 
 function baseChanceForEvent(eventType, attackingTeam, defendingTeam, shooter, match) {
-  let base = 0.38;
-  if (eventType === 'longshot') base = 0.16 + (match.rule?.effect?.longShotBoost || 0);
-  if (eventType === 'setpiece') base = 0.32;
+  let base = 0.38 + (match.rule?.effect?.chanceBoost || 0);
+  if (eventType === 'longshot') base = 0.16 + (match.rule?.effect?.longShotBoost || 0) + (match.rule?.effect?.chanceBoost || 0);
+  if (eventType === 'setpiece') base = 0.32 + (match.rule?.effect?.chanceBoost || 0) * 0.7;
   base += (shooter.finishing - 75) / 220;
   base += (teamAttackValue(attackingTeam) - teamDefenceValue(defendingTeam)) / 420;
   if (shooter.staminaCurrent < 45) base -= 0.04;
-  return clamp(base, 0.08, 0.72);
+  return clamp(base, 0.08, 0.78);
 }
 
 function startChanceCountdown() {
@@ -2084,7 +2447,9 @@ function resolveChance(zoneId) {
   chance += TACTIC_OPTIONS[attackingTeam.tactic].attack / 220;
   chance -= TACTIC_OPTIONS[defendingTeam.tactic].defence / 260;
   chance -= ((keeper.gk || 75) - 78) / 230;
-  if (overlay.kind === 'penalty') chance = 0.79 + (shooter.penalty - 78) / 125 + ((match.rule?.effect?.penaltyBoost || 0) / 100);
+  chance += (match.rule?.effect?.chanceBoost || 0) * 0.9;
+  chance += (match.rule?.effect?.keeperNerf || 0) / 220;
+  if (overlay.kind === 'penalty') chance = 0.79 + (shooter.penalty - 78) / 125 + ((match.rule?.effect?.penaltyBoost || 0) / 100) + (match.rule?.effect?.keeperNerf || 0) / 220;
   if (overlay.kind === 'longshot') chance += (match.rule?.effect?.longShotBoost || 0);
   if (guessedCorrect) chance -= overlay.kind === 'penalty' ? 0.40 : 0.34 + zone.keeperBias;
   else chance += overlay.kind === 'penalty' ? 0.06 : 0.08;
@@ -2121,7 +2486,7 @@ function resolveChance(zoneId) {
     attackingTeam.morale += 2;
     defendingTeam.morale -= 1;
     playGoalSound();
-    playGoalSceneCrowd();
+    playGoalCheer();
   } else if (outcome === 'saved') {
     defendingTeam.morale += 1;
     playSaveSound();
@@ -2260,6 +2625,8 @@ function continuePenaltyShootout() {
   const kicker = nextPenaltyTaker(team, match.shootout[side].length);
   const keeper = goalkeeper(defendingTeam);
 
+  playPenaltyWhistle();
+
   appState.overlay = {
     type: 'chance',
     kind: 'penalty',
@@ -2348,6 +2715,8 @@ function finishMatch(customSummary = '') {
     summary = customSummary || `${awayName} take the result after surviving the big moments.`;
   }
 
+  playFinalWhistle();
+
   const isTournamentMatch = !!match.context?.type;
   if (isTournamentMatch) {
     applyPlayedMatchToTournament(match, summary);
@@ -2417,7 +2786,7 @@ function createPrototypeTournament(mode, setup) {
   return {
     id: `tournament-${Date.now()}`,
     mode,
-    difficulty: setup.difficulty,
+    difficulty: appState.settings.difficulty || setup.difficulty || 'normal',
     selectedTeam: mode === 'tournament_one' ? setup.selectedTeam : (setup.favouriteTeam || setup.selectedTeam),
     favouriteTeam: setup.favouriteTeam || setup.selectedTeam,
     phase: 'group',
@@ -2432,7 +2801,7 @@ function createPrototypeTournament(mode, setup) {
 function buildPrototypeGroups(anchorTeam) {
   const groupNames = 'ABCDEFGHIJKL'.split('');
   const groups = Object.fromEntries(groupNames.map((group) => [group, []]));
-  const orderedTeams = SAMPLE_TEAMS.slice().sort((a, b) => b.ratings.overall - a.ratings.overall || a.name.localeCompare(b.name));
+  const orderedTeams = SAMPLE_TEAMS.slice().sort((a, b) => getWorldCupFifaRank(a.name) - getWorldCupFifaRank(b.name) || a.name.localeCompare(b.name));
   const pots = [
     orderedTeams.slice(0, 12),
     orderedTeams.slice(12, 24),
@@ -2600,6 +2969,28 @@ function renderBracketMatchSvg(match, x, y, side = 'left', options = {}) {
   `;
 }
 
+function renderKnockoutMobileMatch(match, label) {
+  const home = getBracketDisplayLabel(match.homeTeam);
+  const away = getBracketDisplayLabel(match.awayTeam);
+  const scoreline = match.status === 'complete'
+    ? `${match.homeScore} - ${match.awayScore}`
+    : 'vs';
+  const note = match.penalties
+    ? `Pens ${match.penalties.home}-${match.penalties.away}`
+    : (match.status === 'complete' ? 'Full time' : 'To play');
+  return `
+    <div class="knockout-mobile-match">
+      <div class="knockout-mobile-label">${label}</div>
+      <div class="knockout-mobile-row">
+        <span>${home}</span>
+        <strong>${scoreline}</strong>
+        <span>${away}</span>
+      </div>
+      <div class="small-note">${note}</div>
+    </div>
+  `;
+}
+
 function renderKnockoutGraphic(tournament) {
   const slots = getKnockoutBracketSlots(tournament);
   return `
@@ -2646,6 +3037,25 @@ function renderKnockoutGraphic(tournament) {
 
         ${tournament.complete && tournament.champion ? `<text x="600" y="380" text-anchor="middle" font-size="22" font-weight="900" fill="#ffffff">Champion: ${getBracketDisplayLabel(tournament.champion)}</text>` : ''}
       </svg>
+    </div>
+    <div class="knockout-mobile-bracket">
+      <div class="knockout-mobile-stage">
+        <h4>Quarter-finals</h4>
+        ${renderKnockoutMobileMatch(slots.qf1 || { homeTeam: 'TBD', awayTeam: 'TBD', status: 'pending' }, 'Quarter-final 1')}
+        ${renderKnockoutMobileMatch(slots.qf2 || { homeTeam: 'TBD', awayTeam: 'TBD', status: 'pending' }, 'Quarter-final 2')}
+        ${renderKnockoutMobileMatch(slots.qf3 || { homeTeam: 'TBD', awayTeam: 'TBD', status: 'pending' }, 'Quarter-final 3')}
+        ${renderKnockoutMobileMatch(slots.qf4 || { homeTeam: 'TBD', awayTeam: 'TBD', status: 'pending' }, 'Quarter-final 4')}
+      </div>
+      <div class="knockout-mobile-stage">
+        <h4>Semi-finals</h4>
+        ${renderKnockoutMobileMatch(slots.sf1, 'Semi-final 1')}
+        ${renderKnockoutMobileMatch(slots.sf2, 'Semi-final 2')}
+      </div>
+      <div class="knockout-mobile-stage knockout-mobile-stage-final">
+        <h4>Final</h4>
+        ${renderKnockoutMobileMatch(slots.final, 'Final')}
+        ${tournament.complete && tournament.champion ? `<div class="knockout-mobile-champion">Champion: ${getBracketDisplayLabel(tournament.champion)}</div>` : ''}
+      </div>
     </div>
   `;
 }
@@ -2975,7 +3385,7 @@ function playCurrentTournamentFixture(controlTeamName) {
   appState.screen = 'match';
   render();
   if (!rule) {
-    playWhistle();
+    playStartWhistle();
     startLiveLoop();
   }
 }
@@ -3076,9 +3486,7 @@ function animateSceneIfNeeded() {
   const frame = scene?.querySelector('.goal-frame');
   if (!ball || !gk || !scene || !frame) return;
 
-  const ballZoneId = overlay.resolved
-    ? overlay.targetZone
-    : (overlay.mode === 'attack' ? overlay.selectedZone : null);
+  const ballZoneId = overlay.resolved ? overlay.targetZone : null;
   const ballZone = ballZoneId !== null ? GOAL_ZONES[ballZoneId] : null;
   const gkZoneId = overlay.resolved ? (overlay.guessZone !== null ? overlay.guessZone : overlay.selectedZone) : null;
   const gkZone = gkZoneId !== null ? GOAL_ZONES[gkZoneId] : null;
@@ -3101,14 +3509,15 @@ function animateSceneIfNeeded() {
   const rawBallTop = zoneRect
     ? zoneRect.top - sceneRect.top + zoneRect.height / 2
     : goalInnerBottom + 93;
-  const desiredGkLeft = gkZoneRect ? gkZoneRect.left - sceneRect.left + gkZoneRect.width / 2 : baseGkCenterX;
-  const maxDiveX = Math.max(18, (goalInnerRight - goalInnerLeft) / 2 - gkRect.width / 2 - 8);
-  const normalizedDive = clamp((desiredGkLeft - baseGkCenterX) / Math.max(1, frameRect.width / 2), -1, 1);
-  const diveX = gkZone ? normalizedDive * maxDiveX : 0;
-  const desiredGkY = gkZone
-    ? clamp(gkZone.y < 40 ? goalInnerTop + 34 : goalInnerTop + 58, goalInnerTop + 26, goalInnerBottom - 14)
+
+  const desiredGkCenterX = gkZoneRect
+    ? clamp(gkZoneRect.left - sceneRect.left + gkZoneRect.width / 2, goalInnerLeft + gkRect.width * 0.24, goalInnerRight - gkRect.width * 0.24)
+    : baseGkCenterX;
+  const desiredGkCenterY = gkZoneRect
+    ? clamp(gkZoneRect.top - sceneRect.top + gkZoneRect.height / 2, goalInnerTop + 24, goalInnerBottom - 12)
     : baseGkCenterY;
-  const diveY = gkZone ? desiredGkY - baseGkCenterY : 0;
+  const diveX = desiredGkCenterX - baseGkCenterX;
+  const diveY = desiredGkCenterY - baseGkCenterY;
 
   let targetLeft = rawBallLeft;
   let targetTop = rawBallTop;
@@ -3275,10 +3684,14 @@ function playCrowdAnticipation(secondsLeft = 4) {
   }
 }
 
+function playGoalCheer() {
+  playCrowdRoar(2.1, 0);
+  playCrowdRoar(1.55, 0.42);
+  playNoise(1.2, 0.025, 3200, 130, 0.08);
+}
+
 function playGoalSceneCrowd() {
-  playCrowdRoar(1.75, 0);
-  playCrowdRoar(1.35, 0.55);
-  playNoise(1, 0.02, 2900, 140, 0.12);
+  playGoalCheer();
 }
 
 function playSaveSceneCrowd() {
@@ -3298,20 +3711,43 @@ function playGoalSound() {
 }
 
 function playSaveSound() {
-  playImpact(136, 1300, 1, 0);
-  playNoise(0.11, 0.012, 1000, 260, 0.03);
-  playCrowdGroan(0.72, 0.08);
+  playImpact(152, 1650, 0.9, 0);
+  playTone(820, 0.035, 'triangle', 0.018, 0.018);
+  playTone(560, 0.05, 'triangle', 0.012, 0.04);
+  playNoise(0.05, 0.008, 2400, 700, 0.016);
+  playNoise(0.09, 0.006, 1200, 280, 0.045);
+  playCrowdGroan(0.58, 0.11);
 }
 
 function playMissSound() {
-  playImpact(112, 1100, 0.82, 0);
-  playNoise(0.12, 0.007, 2000, 400, 0.06);
-  playCrowdGroan(1.05, 0.08);
+  playImpact(104, 1000, 0.62, 0);
+  playSweep(250, 145, 0.28, 'triangle', 0.007, 0.03);
+  playNoise(0.08, 0.006, 1700, 360, 0.02);
+  playCrowdGroan(1.28, 0.04);
+  playCrowdGroan(0.92, 0.42);
+  playCrowdMurmur(0.52, 0.74);
 }
 
 function playWhistle() {
   playSweep(1320, 1180, 0.09, 'square', 0.032, 0);
   playSweep(1260, 1040, 0.1, 'square', 0.027, 0.12);
+}
+
+function playStartWhistle() {
+  playSweep(1380, 1120, 0.11, 'square', 0.038, 0);
+  playSweep(1340, 980, 0.13, 'square', 0.032, 0.13);
+}
+
+function playFinalWhistle() {
+  playSweep(1460, 1200, 0.14, 'square', 0.04, 0);
+  playSweep(1420, 1100, 0.14, 'square', 0.038, 0.2);
+  playSweep(1380, 1020, 0.18, 'square', 0.044, 0.44);
+  playSweep(1320, 920, 0.24, 'square', 0.042, 0.76);
+}
+
+function playPenaltyWhistle() {
+  playSweep(1540, 1240, 0.12, 'square', 0.038, 0);
+  playSweep(1480, 980, 0.14, 'square', 0.032, 0.1);
 }
 
 function playCardSound(red = false, freq = null) {
